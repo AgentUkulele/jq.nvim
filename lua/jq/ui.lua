@@ -1,6 +1,7 @@
 local M = {}
 
 local cmd = require("jq.cmd")
+local utils = require("jq.utils")
 
 M._open = false
 M._bufs = {}
@@ -16,50 +17,34 @@ M.open = function(json)
 	vim.cmd("tabnew")
 
 	-- JSON Input
-	local json_in_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(json_in_buf, "jq-input")
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = json_in_buf })
-	vim.api.nvim_set_option_value("filetype", "json", { buf = json_in_buf })
-	local json_in_win = vim.api.nvim_get_current_win()
-	vim.api.nvim_win_set_buf(json_in_win, json_in_buf)
-	vim.api.nvim_buf_set_lines(json_in_buf, -1, -1, true, json)
-	M._bufs["json_in_buf"] = json_in_buf
+	local json_in = utils.create_window("jq-input", "json", 100)
+	vim.api.nvim_buf_set_lines(json_in.buf_id, -1, -1, true, json)
+	M._bufs["json_in_buf"] = json_in.buf_id
 
 	-- Input Buffer
 	vim.cmd("botright split")
-	local input_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(input_buf, "jq-filter")
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = input_buf })
-	vim.api.nvim_set_option_value("filetype", "jq", { buf = input_buf })
-	local input_win = vim.api.nvim_get_current_win()
-	vim.api.nvim_win_set_buf(input_win, input_buf)
-	vim.api.nvim_win_set_height(input_win, 10)
-	M._bufs["input_buf"] = input_buf
+	local input = utils.create_window("jq-filter", "jq", 10)
+	M._bufs["input_buf"] = input.buf_id
 
 	-- JSON Output
 	vim.cmd("botright vsplit")
-	local json_out_buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(json_out_buf, "jq-output")
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = json_out_buf })
-	vim.api.nvim_set_option_value("filetype", "json", { buf = json_out_buf })
-	local json_out_win = vim.api.nvim_get_current_win()
-	vim.api.nvim_win_set_buf(json_out_win, json_out_buf)
-	M._bufs["json_out_buf"] = json_out_buf
+	local json_out = utils.create_window("jq-output", "json", 100)
+	M._bufs["json_out_buf"] = json_out.buf_id
 
 	vim.api.nvim_create_augroup("jq.nvim", { clear = true })
 
 	vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged" }, {
 		group = "jq.nvim",
-		buffer = input_buf,
+		buffer = input.buf_id,
 		callback = function(_)
-			local filter = table.concat(vim.api.nvim_buf_get_lines(input_buf, 0, -1, false))
-			local json = table.concat(vim.api.nvim_buf_get_lines(json_in_buf, 0, -1, false))
-			local res = cmd.run_cmd("jq", json, filter)
-			vim.api.nvim_buf_set_lines(json_out_buf, 0, -1, true, res)
+			local filter = table.concat(vim.api.nvim_buf_get_lines(input.buf_id, 0, -1, false))
+			local json_highlighted = table.concat(vim.api.nvim_buf_get_lines(json_in.buf_id, 0, -1, false))
+			local res = cmd.run_cmd("jq", json_highlighted, filter)
+			vim.api.nvim_buf_set_lines(json_out.buf_id, 0, -1, true, res)
 		end,
 	})
 
-	for _, buf in ipairs({ json_in_buf, input_buf, json_out_buf }) do
+	for _, buf in ipairs({ json_in.buf_id, input.buf_id, json_out.buf_id }) do
 		vim.api.nvim_create_autocmd({ "WinClosed" }, {
 			group = "jq.nvim",
 			buffer = buf,
@@ -69,7 +54,7 @@ M.open = function(json)
 		})
 	end
 
-	vim.api.nvim_set_current_win(input_win)
+	vim.api.nvim_set_current_win(input.win_id)
 end
 
 M.close = function()

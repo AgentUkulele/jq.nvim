@@ -14,4 +14,27 @@ M.get_highlighted_region = function()
 	return lines
 end
 
+--- @class JQWindow
+--- @field win_id number
+--- @field buf_id number
+
+--- @param winname string Name for created window
+--- @param ft string Filetype for created buffer
+--- @param height number
+--- @return JQWindow
+M.create_window = function(winname, ft, height)
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_name(buf, winname)
+	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+	vim.api.nvim_set_option_value("filetype", ft, { buf = buf })
+	local input_win = vim.api.nvim_get_current_win()
+	vim.api.nvim_win_set_buf(input_win, buf)
+	vim.api.nvim_win_set_height(input_win, height)
+
+	return {
+		win_id = input_win,
+		buf_id = buf,
+	}
+end
+
 return M
